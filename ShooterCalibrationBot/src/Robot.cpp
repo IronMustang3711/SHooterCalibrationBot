@@ -10,6 +10,7 @@
 #include <Timer.h>
 #include <CANTalon.h>
 #include <Talon.h>
+#include <PowerDistributionPanel.h>
 
 /**
  While throttling the Talon in the positive direction, make sure the sensor speed is also positive.
@@ -52,8 +53,10 @@ If the mechanism is not quite reaching the final target position (and P -gain ca
  */
 class Robot: public frc::SampleRobot {
 	frc::Joystick stick { 0 };
-	CANTalon shooterController { 1 };
+	CANTalon shooterController { 1 /*update rate in ms*/};
 	frc::Talon loaderController { 5 };
+	frc::PowerDistributionPanel pdp{};
+
 
 public:
 	Robot() {
@@ -64,27 +67,29 @@ public:
 	void RobotInit() {
 	      shooterController.SetFeedbackDevice(CANTalon::QuadEncoder);
 	      shooterController.ConfigEncoderCodesPerRev(20);
-	      shooterController.SetSensorDirection(true); //TODO VERIFY!!!
+	      shooterController.SetSensorDirection(false);
 			shooterController.SetPosition(0);
+			shooterController.SetControlMode(CANSpeedController::kSpeed);
 
 //Nominal Closed-Loop Output: Promotes the minimal or weakest motor-output during closed-loop.
-	      shooterController.ConfigNominalOutputVoltage(+0., -0.);
-	      shooterController.ConfigPeakOutputVoltage(+12., 0.0);
+	      shooterController.ConfigNominalOutputVoltage(+0., -2.0);
+	      shooterController.ConfigPeakOutputVoltage(-2.0, -12.0);
 			/* set the allowable closed-loop error,
 			 * Closed-Loop output will be neutral within this range.
 			 * See Table in Section 17.2.1 for native units per rotation.
 			 */
 	      shooterController.SetAllowableClosedLoopErr(0); /* always servo */
-	      shooterController.SelectProfileSlot(1); //CONFIGURE PID SLOT 1 in web dashboard
-	      shooterController.SetF(0.0);
-	      shooterController.SetP(0.0);
-	      shooterController.SetI(0.0);
-	      shooterController.SetD(0.0);
+	     // shooterController.SelectProfileSlot(1); //CONFIGURE PID SLOT 1 in web dashboard
+//	      shooterController.SetF(1.8);
+//	      shooterController.SetP(0.38);
+//	      shooterController.SetI(0.0);
+//	      shooterController.SetD(0.0);
+//	      shooterController.SetCloseLoopRampRate(0.0);
 
 
 	}
 	void shooterUpdate() {
-		float sliderValue = -stick.GetRawAxis(3);   // this was reversed
+		float sliderValue = (-stick.GetRawAxis(3)+1)*0.5;   // this was reversed
 		SmartDashboard::PutNumber("slider", sliderValue);
 		double motorOutput = shooterController.GetOutputVoltage()
 				/ shooterController.GetBusVoltage();
@@ -94,19 +99,20 @@ public:
 				shooterController.GetPosition());
 		SmartDashboard::PutNumber("TALON: speed", shooterController.GetSpeed());
 
-		if (stick.GetRawButton(2)) {
-			shooterController.SetControlMode(CANSpeedController::kVoltage);
-			double target = sliderValue * 1500.0;
+	//	if (stick.GetRawButton(2)) {
+	//		shooterController.SetControlMode(CANSpeedController::kSpeed);
+			double target = -sliderValue * 4500.0; //RPM
 			shooterController.Set(target);
 
-			SmartDashboard::PutNumber("TALON: closed loop error",
-					shooterController.GetClosedLoopError());
 			SmartDashboard::PutNumber("TALON: target", target);
 
-		} else {
-			shooterController.SetControlMode(CANSpeedController::kPercentVbus);
-			shooterController.Set(sliderValue);
-		}
+//		} else {
+//			shooterController.SetControlMode(CANSpeedController::kPercentVbus);
+//			shooterController.Set(sliderValue);
+//		}
+		SmartDashboard::PutNumber("TALON: closed loop error",
+				shooterController.GetClosedLoopError());
+
 
 		SmartDashboard::PutNumber("encoder value",
 				shooterController.GetEncPosition());
@@ -114,6 +120,7 @@ public:
 				shooterController.GetEncVel());
 		SmartDashboard::PutNumber("encoder position",
 				shooterController.GetPosition());
+		SmartDashboard::PutNumber("current",pdp.GetCurrent(12));
 	}
 
 	/*
