@@ -53,7 +53,7 @@ If the mechanism is not quite reaching the final target position (and P -gain ca
  */
 class Robot: public frc::SampleRobot {
 	frc::Joystick stick { 0 };
-	CANTalon shooterController { 1 /*update rate in ms*/};
+	CANTalon shooterController { 1 ,/*update rate in ms*/5};
 	frc::Talon loaderController { 5 };
 	frc::PowerDistributionPanel pdp{};
 
@@ -79,29 +79,34 @@ public:
 			 * See Table in Section 17.2.1 for native units per rotation.
 			 */
 	      shooterController.SetAllowableClosedLoopErr(0); /* always servo */
-	     // shooterController.SelectProfileSlot(1); //CONFIGURE PID SLOT 1 in web dashboard
-//	      shooterController.SetF(1.8);
-//	      shooterController.SetP(0.38);
-//	      shooterController.SetI(0.0);
-//	      shooterController.SetD(0.0);
-//	      shooterController.SetCloseLoopRampRate(0.0);
+	      shooterController.SetF(1.51);
+	      shooterController.SetP(0.98);
+	      shooterController.SetI(0.0);
+	      shooterController.SetD(0.1);
+	      shooterController.SetCloseLoopRampRate(0.0);
 
 
 	}
 	void shooterUpdate() {
-		float sliderValue = (-stick.GetRawAxis(3)+1)*0.5;   // this was reversed
-		SmartDashboard::PutNumber("slider", sliderValue);
+		float sliderValue = (-stick.GetRawAxis(3)+1)*0.5;   // [0,1]
+
+
+
+
+//		SmartDashboard::PutNumber("slider", sliderValue);
 		double motorOutput = shooterController.GetOutputVoltage()
 				/ shooterController.GetBusVoltage();
 
 		SmartDashboard::PutNumber("TALON: motor output", motorOutput);
-		SmartDashboard::PutNumber("TALON: position",
-				shooterController.GetPosition());
 		SmartDashboard::PutNumber("TALON: speed", shooterController.GetSpeed());
 
-	//	if (stick.GetRawButton(2)) {
-	//		shooterController.SetControlMode(CANSpeedController::kSpeed);
-			double target = -sliderValue * 4500.0; //RPM
+
+			double target = -sliderValue * 4500.0; //max RPM
+
+			if(sliderValue > 0.1){
+				target = -sliderValue*1500 - 3000;
+			}
+
 			shooterController.Set(target);
 
 			SmartDashboard::PutNumber("TALON: target", target);
@@ -114,13 +119,11 @@ public:
 				shooterController.GetClosedLoopError());
 
 
-		SmartDashboard::PutNumber("encoder value",
-				shooterController.GetEncPosition());
+
 		SmartDashboard::PutNumber("encoder velocity",
 				shooterController.GetEncVel());
-		SmartDashboard::PutNumber("encoder position",
-				shooterController.GetPosition());
-		SmartDashboard::PutNumber("current",pdp.GetCurrent(12));
+
+		//SmartDashboard::PutNumber("current",pdp.GetCurrent(12));
 	}
 
 	/*
