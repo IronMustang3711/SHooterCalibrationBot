@@ -1,18 +1,13 @@
 #include <iostream>
 #include <memory>
-#include <string>
 #include <cmath>
 
 #include <Joystick.h>
 #include <SampleRobot.h>
-#include <SmartDashboard/SendableChooser.h>
 #include <SmartDashboard/SmartDashboard.h>
-#include <RobotDrive.h>
 #include <Timer.h>
 #include <CANTalon.h>
-#include <Talon.h>
-#include <PowerDistributionPanel.h>
-#include <Utility.h>
+//#include <Utility.h> //frc::getFPGATime()-> uint64
 
 /**
  While throttling the Talon in the positive direction, make sure the sensor speed is also positive.
@@ -54,95 +49,98 @@
 
  */
 
-class Robot: public frc::SampleRobot {
-	frc::Joystick stick { 0 };
-	CANTalon shooterController { 1,/*update rate in ms*/5 };
-	//target ∈ [-4500,0];
-	double target = 0;
-	double motorOutput = 0;
-	double speed = 0;
-	int error = 0;
-	double timestamp = 0;
+class Robot : public frc::SampleRobot {
+    frc::Joystick stick;
+    CANTalon shooterController;
+    //target ∈ [-4500,0];
+    double target;
+    double motorOutput;
+    double speed;
+    int error;
+    double timestamp;
 
 public:
-	Robot() {
-	}
+    Robot() : stick(0),
+              shooterController(1, 5),
+              target(0), motorOutput(0), speed(0), error(0), timestamp(0) {}
 
-	/**
-	 * [0,0.1) -> [0,3000)
-	 * [0.1,1.0]->[3000,4500]
-	 */
+    /**
+     * [0,0.1) -> [0,3000)
+     * [0.1,1.0]->[3000,4500]
+     */
+//TODO: see if this is better than log scaling. If not, remove.
+    double remapSliderValue(double input) {
+        return input < 0.1 ? input * 30000.0 : input * 1666.7 + 2833.3;
+    }
 
-	double remapSliderValue(double input) {
-		return input < 0.1 ? input * 30000.0 : input * 1666.7 + 2833.3;
-	}
+    void telemetryUpdate() {
+        motorOutput = shooterController.GetOutputVoltage()
+                      / shooterController.GetBusVoltage();
+        speed = shooterController.GetSpeed();
+        error = shooterController.GetClosedLoopError();
+        timestamp = frc::Timer::GetFPGATimestamp();
+    }
+    //TODO: write telemetry to csv file
 
-	void telemetryUpdate() {
-		motorOutput = shooterController.GetOutputVoltage()
-				/ shooterController.GetBusVoltage();
-		speed = shooterController.GetSpeed();
-		error = shooterController.GetClosedLoopError();
-		timestamp = frc::Timer::GetFPGATimestamp();
-	}
+    void smartDashboardUpdate() {
+        SmartDashboard::PutNumber("TALON: motor output", motorOutput);
+        SmartDashboard::PutNumber("TALON: speed", speed);
+        SmartDashboard::PutNumber("TALON: target", target);
+        SmartDashboard::PutNumber("TALON: closed loop error", error);
+    }
 
-	void smartDashboardUpdate() {
-		SmartDashboard::PutNumber("TALON: motor output", motorOutput);
-		SmartDashboard::PutNumber("TALON: speed", speed);
-		SmartDashboard::PutNumber("TALON: target", target);
-		SmartDashboard::PutNumber("TALON: closed loop error", error);
-	}
-
-	void RobotInit() {
-		shooterController.SetFeedbackDevice(CANTalon::QuadEncoder);
-		shooterController.ConfigEncoderCodesPerRev(20);
-		shooterController.SetSensorDirection(false);
-		shooterController.SetPosition(0);
-		shooterController.SetControlMode(CANSpeedController::kSpeed);
+    void RobotInit() {
+        shooterController.SetFeedbackDevice(CANTalon::QuadEncoder);
+        shooterController.ConfigEncoderCodesPerRev(20);
+        shooterController.SetSensorDirection(false);
+        shooterController.SetClosedLoopOutputDirection(true); //TODO try changing this if it doesnt work
+        shooterController.SetPosition(0);
+        shooterController.SetControlMode(CANSpeedController::kSpeed);
 
 //Nominal Closed-Loop Output: Promotes the minimal or weakest motor-output during closed-loop.
-		shooterController.ConfigNominalOutputVoltage(+0., -2.0);
-		shooterController.ConfigPeakOutputVoltage(-2.0, -15.0);
-		/* set the allowable closed-loop error,
-		 * Closed-Loop output will be neutral within this range.
-		 * See Table in Section 17.2.1 for native units per rotation.
-		 */
-		shooterController.SetAllowableClosedLoopErr(0); /* always servo */
-		shooterController.SetF(1.51);
-		shooterController.SetP(0.98);
-		shooterController.SetI(0.05);
-		shooterController.SetD(0.1);
-		shooterController.SetCloseLoopRampRate(0.0);
-		shooterController.SetIzone(60);
-		//TODO: reverse, get rid of negative numbers.
-		//shooterController.SetClosedLoopOutputDirection()
+        shooterController.ConfigNominalOutputVoltage(+0., 2.0);
+        shooterController.ConfigPeakOutputVoltage(2.0, 15.0);
+        /* set the allowable closed-loop error,
+         * Closed-Loop output will be neutral within this range.
+         * See Table in Section 17.2.1 for native units per rotation.
+         */
+        shooterController.SetAllowableClosedLoopErr(0); /* always servo */
+        shooterController.SetF(1.51);
+        shooterController.SetP(0.98);
+        shooterController.SetI(0.05);
+        shooterController.SetD(0.1);
+        shooterController.SetCloseLoopRampRate(0.0);
+        shooterController.SetIzone(60);
 
-	}
-	void shooterUpdate() {
-		//sliderValue ∈ [0,1]
-		double sliderValue = (-stick.GetRawAxis(3) + 1) * 0.5;
-		//target ∈ [-5227,0];
-		target = -5227.0 * log10(9.0 * sliderValue + 1.0);
 
-		shooterController.Set(target);
+    }
 
-	}
+    void shooterUpdate() {
+        //sliderValue ∈ [0,1]
+        double sliderValue = (-stick.GetRawAxis(3) + 1) * 0.5;
+        //target ∈ [0,5227];
+        target = 5227.0 * log10(9.0 * sliderValue + 1.0);
 
-	void OperatorControl() override {
+        shooterController.Set(target);
 
-		while (IsOperatorControl() && IsEnabled()) {
+    }
 
-			shooterUpdate();
-			telemetryUpdate();
-			smartDashboardUpdate();
+    void OperatorControl() override {
 
-			frc::Wait(0.005);
-		}
-	}
+        while (IsOperatorControl() && IsEnabled()) {
 
-	void Test() {
-		LiveWindow::GetInstance()->AddActuator("ROBOT", "SHOOTER",
-				shooterController);
-	}
+            shooterUpdate();
+            telemetryUpdate();
+            smartDashboardUpdate();
+
+            frc::Wait(0.005);
+        }
+    }
+
+    void Test() {
+        LiveWindow::GetInstance()->AddActuator("ROBOT", "SHOOTER",
+                                               shooterController);
+    }
 
 };
 
