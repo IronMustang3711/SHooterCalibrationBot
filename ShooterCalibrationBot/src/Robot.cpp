@@ -1,18 +1,13 @@
 #include <iostream>
 #include <memory>
-#include <string>
 #include <cmath>
 
 #include <Joystick.h>
 #include <SampleRobot.h>
-#include <SmartDashboard/SendableChooser.h>
 #include <SmartDashboard/SmartDashboard.h>
 #include <RobotDrive.h>
-#include <Timer.h>
 #include <CANTalon.h>
-#include <Talon.h>
-#include <PowerDistributionPanel.h>
-#include <Utility.h>
+#include <Timer.h>
 
 /**
  While throttling the Talon in the positive direction, make sure the sensor speed is also positive.
@@ -55,9 +50,9 @@
  */
 
 class Robot: public frc::SampleRobot {
-	frc::Joystick stick { 0 };
-	CANTalon shooterController { 1,/*update rate in ms*/5 };
-	//target ∈ [-4500,0];
+	frc::Joystick stick;
+	CANTalon shooterController;
+	//target in [-4500,0];
 	double target = 0;
 	double motorOutput = 0;
 	double speed = 0;
@@ -65,14 +60,15 @@ class Robot: public frc::SampleRobot {
 	double timestamp = 0;
 
 public:
-	Robot() {
+	Robot(): stick(0),shooterController(1,5)
+	,target(0),motorOutput(0),speed(0),error(0),timestamp(0){
 	}
 
 	/**
 	 * [0,0.1) -> [0,3000)
 	 * [0.1,1.0]->[3000,4500]
 	 */
-
+//TODO update numbers for new max rpm, test to see if this provides better control than log scaling.
 	double remapSliderValue(double input) {
 		return input < 0.1 ? input * 30000.0 : input * 1666.7 + 2833.3;
 	}
@@ -113,14 +109,13 @@ public:
 		shooterController.SetD(0.1);
 		shooterController.SetCloseLoopRampRate(0.0);
 		shooterController.SetIzone(60);
-		//TODO: reverse, get rid of negative numbers.
-		//shooterController.SetClosedLoopOutputDirection()
+
 
 	}
 	void shooterUpdate() {
-		//sliderValue ∈ [0,1]
+		//sliderValue in [0,1]
 		double sliderValue = (-stick.GetRawAxis(3) + 1) * 0.5;
-		//target ∈ [-5227,0];
+		//target in [-5227,0];
 		target = -5227.0 * log10(9.0 * sliderValue + 1.0);
 
 		shooterController.Set(target);
