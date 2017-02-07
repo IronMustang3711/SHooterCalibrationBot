@@ -1,18 +1,16 @@
 #include <iostream>
+#include <fstream>
+#include <cstdio>
+
 #include <memory>
-#include <string>
 #include <cmath>
 
 #include <Joystick.h>
 #include <SampleRobot.h>
-#include <SmartDashboard/SendableChooser.h>
 #include <SmartDashboard/SmartDashboard.h>
-#include <RobotDrive.h>
 #include <Timer.h>
 #include <CANTalon.h>
-#include <Talon.h>
-#include <PowerDistributionPanel.h>
-#include <Utility.h>
+//#include <Utility.h> //frc::getFPGATime()-> uint64
 
 /**
  While throttling the Talon in the positive direction, make sure the sensor speed is also positive.
@@ -54,36 +52,42 @@
 
  */
 
-class Robot: public frc::SampleRobot {
-	frc::Joystick stick { 0 };
-	CANTalon shooterController { 1,/*update rate in ms*/5 };
-	//target ∈ [-4500,0];
-	double target = 0;
-	double motorOutput = 0;
-	double speed = 0;
-	int error = 0;
-	double timestamp = 0;
+class Robot : public frc::SampleRobot {
+    frc::Joystick stick;
+    CANTalon shooterController;
+    double target;
+    double motorOutput;
+    double speed;
+    int error;
+    double timestamp;
+    FILE* out; //TODO make lifecycle shorter?
+    char buf[120];
 
 public:
-	Robot() {
-	}
+    Robot() : stick(0),
+              shooterController(1, 5),
+              target(0), motorOutput(0), speed(0), error(0), timestamp(0) {
+        out = fopen("pid.csv","a");
+        assert(out!=NULL);
+        setbuf(out,buf);
+        fprintf(out,"time,target,speed,output,error\n");
 
-	/**
-	 * [0,0.1) -> [0,3000)
-	 * [0.1,1.0]->[3000,4500]
-	 */
+    }
 
-	double remapSliderValue(double input) {
-		return input < 0.1 ? input * 30000.0 : input * 1666.7 + 2833.3;
-	}
+    ~Robot(){
+        fclose(out);
+    }
 
-	void telemetryUpdate() {
-		motorOutput = shooterController.GetOutputVoltage()
-				/ shooterController.GetBusVoltage();
-		speed = shooterController.GetSpeed();
-		error = shooterController.GetClosedLoopError();
-		timestamp = frc::Timer::GetFPGATimestamp();
-	}
+    void telemetryUpdate() {
+        motorOutput = shooterController.GetOutputVoltage()
+                      / shooterController.GetBusVoltage();
+        speed = shooterController.GetSpeed();
+        error = shooterController.GetClosedLoopError();
+        timestamp = frc::Timer::GetFPGATimestamp();
+    }
+    void writeCSV(){
+        fprintf(out,"%f,%f,%f,%f,%d\n",timestamp,target,speed,motorOutput,error);
+    }
 
 	void smartDashboardUpdate() {
 		SmartDashboard::PutNumber("TALON: motor output", motorOutput);
@@ -123,26 +127,27 @@ public:
 		//target ∈ [-5227,0];
 		target = -5227.0 * log10(9.0 * sliderValue + 1.0);
 
-		shooterController.Set(target);
+        shooterController.Set(target);
 
-	}
+    }
 
-	void OperatorControl() override {
+    void OperatorControl() override {
 
-		while (IsOperatorControl() && IsEnabled()) {
+        while (IsOperatorControl() && IsEnabled()) {
 
 			shooterUpdate();
 			telemetryUpdate();
-			smartDashboardUpdate();
+            writeCSV();
+            smartDashboardUpdate();
 
-			frc::Wait(0.005);
-		}
-	}
+            frc::Wait(0.005);
+        }
+    }
 
-	void Test() {
-		LiveWindow::GetInstance()->AddActuator("ROBOT", "SHOOTER",
-				shooterController);
-	}
+    void Test() {
+        LiveWindow::GetInstance()->AddActuator("ROBOT", "SHOOTER",
+                                               shooterController);
+    }
 
 };
 
