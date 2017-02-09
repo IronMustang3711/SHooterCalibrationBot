@@ -118,12 +118,12 @@ class Robot : public frc::SampleRobot {
      * See Table in Section 17.2.1 for native units per rotation.
      */
     shooterController.SetAllowableClosedLoopErr(0); /* always servo */
-    shooterController.SetF(1.51);
-    shooterController.SetP(0.98);
-    shooterController.SetI(0.05);
-    shooterController.SetD(0.1);
+    shooterController.SetF(1.45);
+    shooterController.SetP(1.0);
+    shooterController.SetI(0.0);
+    shooterController.SetD(100.0);
     shooterController.SetCloseLoopRampRate(0.0);
-    shooterController.SetIzone(60);
+   // shooterController.SetIzone(60);
   }
   void shooterUpdate() {
     // sliderValue in [0,1]
