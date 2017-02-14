@@ -70,7 +70,7 @@ class Robot : public frc::SampleRobot {
  public:
   Robot()
       : stick(0),
-        shooterController(1, 5),
+        shooterController(3, 5),
         target(0),
         motorOutput(0),
         speed(0),
@@ -100,6 +100,8 @@ class Robot : public frc::SampleRobot {
     SmartDashboard::PutNumber("TALON: speed", speed);
     SmartDashboard::PutNumber("TALON: target", target);
     SmartDashboard::PutNumber("TALON: closed loop error", error);
+    SmartDashboard::PutNumber("TALON: encoder position(raw)",shooterController.GetEncPosition());
+    SmartDashboard::PutNumber("TALON: position",shooterController.GetPosition());
   }
 
   void RobotInit() {
@@ -111,8 +113,8 @@ class Robot : public frc::SampleRobot {
 
     // Nominal Closed-Loop Output: Promotes the minimal or weakest motor-output
     // during closed-loop.
-    shooterController.ConfigNominalOutputVoltage(+0., -2.0);
-    shooterController.ConfigPeakOutputVoltage(-2.0, -15.0);
+    shooterController.ConfigNominalOutputVoltage(+0., -0.0);
+    shooterController.ConfigPeakOutputVoltage(12.0, -12.0);
     /* set the allowable closed-loop error,
      * Closed-Loop output will be neutral within this range.
      * See Table in Section 17.2.1 for native units per rotation.
@@ -121,7 +123,7 @@ class Robot : public frc::SampleRobot {
     shooterController.SetF(1.45);
     shooterController.SetP(1.0);
     shooterController.SetI(0.0);
-    shooterController.SetD(100.0);
+    shooterController.SetD(0.0);
     shooterController.SetCloseLoopRampRate(0.0);
    // shooterController.SetIzone(60);
   }
@@ -129,7 +131,7 @@ class Robot : public frc::SampleRobot {
     // sliderValue in [0,1]
     double sliderValue = (-stick.GetRawAxis(3) + 1) * 0.5;
     // target in [-5227,0];
-    target = -5227.0 * log10(9.0 * sliderValue + 1.0);
+    target = 5227.0 * log10(9.0 * sliderValue + 1.0);
 
     shooterController.Set(target);
   }

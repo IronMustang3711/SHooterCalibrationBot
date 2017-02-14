@@ -25,7 +25,8 @@ set(WPI_DIR "$ENV{HOME}/wpilib")
 
 include_directories(
         "${WPI_DIR}/cpp/current/include"
-        "${WPI_DIR}/user/cpp/include")
+        "${WPI_DIR}/user/cpp/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src")
 link_directories(
         "${WPI_DIR}/cpp/current/lib"
         "${WPI_DIR}/user/cpp/lib")
